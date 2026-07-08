@@ -14,6 +14,8 @@
     --border: #e2e5e9;
     --accent: #2563eb;
     --accent-hover: #1d4ed8;
+    --hover: #eef2ff;
+    --copied: #dcfce7;
     --code-bg: #f8f9fb;
   }
   @media (prefers-color-scheme: dark) {
@@ -23,6 +25,8 @@
       --text: #e8eaed;
       --muted: #9aa1ab;
       --border: #33373e;
+      --hover: #26304a;
+      --copied: #14432a;
       --code-bg: #16181d;
     }
   }
@@ -32,99 +36,122 @@
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     background: var(--bg);
     color: var(--text);
-    line-height: 1.5;
+    line-height: 1.55;
   }
-  .wrap {
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 2rem 1rem 4rem;
-  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 2rem 1rem 4rem; }
   header {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.75rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.5rem;
   }
   h1 { font-size: 1.5rem; margin: 0; flex: 1 1 auto; }
-  .meta { color: var(--muted); font-size: 0.875rem; width: 100%; }
-  button {
+  .meta { color: var(--muted); font-size: 0.875rem; margin-bottom: 1.25rem; }
+  .hint { color: var(--muted); font-size: 0.875rem; margin-bottom: 1rem; }
+  button, select {
     font: inherit;
     font-size: 0.9rem;
-    font-weight: 600;
-    padding: 0.5rem 1.1rem;
+    padding: 0.5rem 1rem;
     border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--card);
     color: var(--text);
     cursor: pointer;
-  }
-  button:hover { border-color: var(--accent); }
-  select {
-    font: inherit;
-    font-size: 0.9rem;
-    padding: 0.5rem 0.75rem;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--card);
-    color: var(--text);
     max-width: 100%;
   }
-  button.primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
-  }
+  button { font-weight: 600; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   button.primary:hover { background: var(--accent-hover); }
-  .card {
+
+  .section {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 12px;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
+    padding: 0.5rem 0;
     overflow: hidden;
   }
-  .card h2 {
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--muted);
-    margin: 0;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--border);
+  .section > h2 {
+    font-size: 1.05rem;
+    margin: 0.4rem 1rem 0.4rem;
   }
+  .kv {
+    display: grid;
+    grid-template-columns: minmax(120px, 220px) 1fr;
+    gap: 0 1rem;
+    align-items: start;
+    padding: 0.45rem 1rem;
+    border-top: 1px solid var(--border);
+  }
+  .kv:first-of-type, h2 + .kv { border-top: none; }
+  .kv .label { color: var(--muted); font-weight: 600; font-size: 0.85rem; padding-top: 0.2rem; }
+  @media (max-width: 540px) {
+    .kv { grid-template-columns: 1fr; }
+  }
+
+  .copyable {
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 0.15rem 0.4rem;
+    margin: 0 -0.4rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    transition: background 0.15s;
+  }
+  .copyable:hover { background: var(--hover); }
+  .copyable.copied { background: var(--copied); }
+  a.ext { color: var(--accent); text-decoration: none; font-size: 0.85em; margin-left: 0.35rem; white-space: nowrap; }
+  a.ext:hover { text-decoration: underline; }
+
   .scroll { overflow-x: auto; }
-  table {
-    border-collapse: collapse;
-    width: 100%;
-    font-size: 0.9rem;
-  }
-  th, td {
-    text-align: left;
-    padding: 0.5rem 1rem;
-    border-bottom: 1px solid var(--border);
-    white-space: nowrap;
-    max-width: 420px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  th { color: var(--muted); font-weight: 600; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 0.15rem 0.6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; padding: 0.5rem 1rem; white-space: nowrap; }
+  td .copyable { display: block; padding: 0.35rem 0.4rem; margin: 0; max-width: 480px; }
   tr:last-child td { border-bottom: none; }
+
+  ul.plain { list-style: none; margin: 0; padding: 0; }
+  ul.plain li { padding: 0.25rem 1rem; border-top: 1px solid var(--border); }
+  ul.plain li:first-child { border-top: none; }
+
+  details {
+    margin-top: 2rem;
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+  details summary { cursor: pointer; }
   pre {
-    margin: 0;
+    margin: 0.75rem 0 0;
     padding: 1rem;
     background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
     font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     overflow-x: auto;
-    white-space: pre;
+    color: var(--text);
   }
-  #status {
-    padding: 2.5rem 1rem;
-    text-align: center;
-    color: var(--muted);
-  }
+  #status { padding: 2.5rem 1rem; text-align: center; color: var(--muted); }
   #status.error { color: #dc2626; }
   #status.error small { display: block; margin-top: 0.5rem; color: var(--muted); }
+
+  #toast {
+    position: fixed;
+    left: 50%;
+    bottom: 2rem;
+    transform: translateX(-50%) translateY(20px);
+    background: #16a34a;
+    color: #fff;
+    font-weight: 600;
+    padding: 0.6rem 1.4rem;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
@@ -133,32 +160,31 @@
     <h1>NTAR Newsletter Data</h1>
     <select id="filePicker" title="Choose which newsletter file to view" hidden></select>
     <button id="refreshBtn" title="Re-fetch the latest data">Refresh</button>
-    <button id="copyBtn" class="primary">Copy JSON</button>
-    <div class="meta" id="fetchedAt"></div>
+    <button id="copyBtn" class="primary">Copy all</button>
   </header>
+  <div class="meta" id="fetchedAt"></div>
+  <div class="hint" id="hint" hidden>&#128161; Click any piece of text below to copy it.</div>
 
   <div id="status">Loading newsletter data&hellip;</div>
+  <div id="content"></div>
 
-  <div class="card" id="tableCard" hidden>
-    <h2>Data</h2>
-    <div class="scroll"><table id="dataTable"></table></div>
-  </div>
-
-  <div class="card" id="jsonCard" hidden>
-    <h2>Raw JSON</h2>
+  <details id="rawWrap" hidden>
+    <summary>Raw JSON (technical)</summary>
     <pre id="jsonOut"></pre>
-  </div>
+  </details>
 </div>
+<div id="toast">Copied &#10003;</div>
 
 <script>
 // /data is a Netlify serverless function (netlify/functions/data.mjs) that
 // reads the private DigitalOcean Space. ?list=1 returns all files newest
 // first; ?key=... returns one file's contents.
 const statusEl = document.getElementById('status');
+const contentEl = document.getElementById('content');
 const jsonOut = document.getElementById('jsonOut');
-const tableEl = document.getElementById('dataTable');
 const picker = document.getElementById('filePicker');
 let rawText = '';
+let plainText = '';
 
 // Fetch the file list, fill the dropdown (newest first), then load the
 // selected file — or the newest one on first load.
@@ -193,37 +219,235 @@ async function loadFile(key) {
     if (!res.ok) throw await errorFrom(res);
     rawText = await res.text();
 
-    let data;
-    try { data = JSON.parse(rawText); }
-    catch { data = null; }
+    let data = null;
+    try { data = JSON.parse(rawText); } catch {}
 
+    contentEl.innerHTML = '';
     if (data !== null) {
       rawText = JSON.stringify(data, null, 2);
-      renderTable(data);
+      // A list of records copies in spreadsheet form; anything else as
+      // readable "Label: value" text.
+      plainText = (Array.isArray(data) && data.length && data.every(isObj))
+        ? toTSV(data)
+        : toPlain(data);
+      contentEl.appendChild(render(data));
+    } else {
+      // Not JSON — just show the text as-is, still copyable.
+      plainText = rawText;
+      const div = document.createElement('div');
+      div.className = 'section';
+      div.appendChild(leaf(rawText));
+      contentEl.appendChild(div);
     }
+
     jsonOut.textContent = rawText;
-    document.getElementById('jsonCard').hidden = false;
+    document.getElementById('rawWrap').hidden = false;
+    document.getElementById('hint').hidden = false;
     statusEl.hidden = true;
     document.getElementById('fetchedAt').textContent =
-      'Fetched ' + new Date().toLocaleString() + ' — file: ' + key;
+      'Showing: ' + key.replace(/^Newsletter\//, '') + ' — fetched ' + new Date().toLocaleString();
   } catch (err) {
     showError(err);
   }
 }
 
+/* ---------- human-friendly rendering ---------- */
+
+// Turns any JSON value into readable DOM. Objects become label/value
+// sections, arrays of records become tables, and every value is copyable.
+function render(value, title) {
+  if (Array.isArray(value)) return renderArray(value, title);
+  if (isObj(value)) return renderObject(value, title);
+  const sec = section(title);
+  sec.appendChild(leaf(value));
+  return sec;
+}
+
+function renderObject(obj, title) {
+  const sec = section(title);
+  const nested = [];
+  for (const [k, v] of Object.entries(obj)) {
+    if (isObj(v) || (Array.isArray(v) && v.some(x => isObj(x) || Array.isArray(x)))) {
+      nested.push([k, v]);
+      continue;
+    }
+    const row = document.createElement('div');
+    row.className = 'kv';
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = pretty(k);
+    row.appendChild(label);
+    const val = document.createElement('div');
+    if (Array.isArray(v)) {
+      v.forEach(item => val.appendChild(leaf(item)));
+    } else {
+      val.appendChild(leaf(v));
+    }
+    row.appendChild(val);
+    sec.appendChild(row);
+  }
+  const frag = document.createDocumentFragment();
+  frag.appendChild(sec);
+  if (!sec.querySelector('.kv')) frag.removeChild(sec);
+  for (const [k, v] of nested) frag.appendChild(render(v, pretty(k)));
+  return frag;
+}
+
+function renderArray(arr, title) {
+  // A list of similar records reads best as a table.
+  if (arr.length && arr.every(isObj)) {
+    const cols = [...new Set(arr.flatMap(o => Object.keys(o)))];
+    const sec = section(title);
+    const scroll = document.createElement('div');
+    scroll.className = 'scroll';
+    const table = document.createElement('table');
+    const thead = table.createTHead().insertRow();
+    cols.forEach(c => {
+      const th = document.createElement('th');
+      th.textContent = pretty(c);
+      thead.appendChild(th);
+    });
+    const tbody = table.createTBody();
+    arr.forEach(rec => {
+      const tr = tbody.insertRow();
+      cols.forEach(c => {
+        const td = tr.insertCell();
+        const v = rec[c];
+        td.appendChild(leaf(isObj(v) || Array.isArray(v) ? JSON.stringify(v) : v));
+      });
+    });
+    scroll.appendChild(table);
+    sec.appendChild(scroll);
+    return sec;
+  }
+  // Mixed or simple list.
+  const sec = section(title);
+  const ul = document.createElement('ul');
+  ul.className = 'plain';
+  arr.forEach(item => {
+    const li = document.createElement('li');
+    if (isObj(item) || Array.isArray(item)) li.appendChild(render(item));
+    else li.appendChild(leaf(item));
+    ul.appendChild(li);
+  });
+  sec.appendChild(ul);
+  return sec;
+}
+
+// A single copyable value.
+function leaf(v) {
+  const span = document.createElement('span');
+  span.className = 'copyable';
+  span.title = 'Click to copy';
+  const text = fmt(v);
+  span.textContent = text;
+  // Copy exactly what is shown (formatted dates etc.); empty values copy nothing.
+  span.dataset.copy = (v === null || v === undefined || v === '') ? '' : text;
+  if (typeof v === 'string' && /^https?:\/\/\S+$/i.test(v.trim())) {
+    const wrap = document.createElement('span');
+    wrap.appendChild(span);
+    const a = document.createElement('a');
+    a.className = 'ext';
+    a.href = v.trim();
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = 'open ↗';
+    wrap.appendChild(a);
+    return wrap;
+  }
+  return span;
+}
+
+function section(title) {
+  const div = document.createElement('div');
+  div.className = 'section';
+  if (title) {
+    const h = document.createElement('h2');
+    h.textContent = title;
+    div.appendChild(h);
+  }
+  return div;
+}
+
+// "publishDate" / "publish_date" -> "Publish Date"; a trailing "Utc" is
+// dropped because timestamps are shown in local time.
+function pretty(key) {
+  return String(key)
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/\b[a-z]/g, ch => ch.toUpperCase())
+    .replace(/\s+Utc$/i, '')
+    .trim();
+}
+
+function fmt(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+  if (typeof v === 'number') return v.toLocaleString();
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v.trim())) {
+    // ISO timestamp — show it as a friendly local date/time. (Trim long
+    // fractional seconds first; some browsers refuse to parse them.)
+    const d = new Date(v.trim().replace(/\.(\d{3})\d+/, '.$1'));
+    if (!isNaN(d)) {
+      return d.toLocaleString(undefined, {
+        day: 'numeric', month: 'short', year: 'numeric',
+        hour: 'numeric', minute: '2-digit',
+      });
+    }
+  }
+  return String(v);
+}
+
+function isObj(v) { return v !== null && typeof v === 'object' && !Array.isArray(v); }
+
+// Readable plain-text version of the whole file, for the Copy all button.
+function toPlain(v, indent = '') {
+  if (Array.isArray(v)) {
+    return v.map((item, i) =>
+      isObj(item) || Array.isArray(item)
+        ? indent + (i + 1) + ')\n' + toPlain(item, indent + '   ')
+        : indent + '- ' + fmt(item)
+    ).join('\n');
+  }
+  if (isObj(v)) {
+    return Object.entries(v).map(([k, val]) =>
+      isObj(val) || Array.isArray(val)
+        ? indent + pretty(k) + ':\n' + toPlain(val, indent + '   ')
+        : indent + pretty(k) + ': ' + fmt(val)
+    ).join('\n');
+  }
+  return indent + fmt(v);
+}
+
+// Tab-separated version of a record list — pastes straight into Excel or
+// Google Sheets with one person per row.
+function toTSV(rows) {
+  const cols = [...new Set(rows.flatMap(o => Object.keys(o)))];
+  const cell = v => (v === null || v === undefined || v === '')
+    ? ''
+    : String(fmt(isObj(v) || Array.isArray(v) ? JSON.stringify(v) : v)).replace(/[\t\n\r]+/g, ' ');
+  return [
+    cols.map(pretty).join('\t'),
+    ...rows.map(r => cols.map(c => cell(r[c])).join('\t')),
+  ].join('\n');
+}
+
+/* ---------- status, copy, events ---------- */
+
 function showLoading(msg) {
   statusEl.hidden = false;
   statusEl.className = '';
   statusEl.textContent = msg;
-  document.getElementById('tableCard').hidden = true;
-  document.getElementById('jsonCard').hidden = true;
+  contentEl.innerHTML = '';
+  document.getElementById('rawWrap').hidden = true;
+  document.getElementById('hint').hidden = true;
 }
 
 function showError(err) {
   statusEl.hidden = false;
   statusEl.className = 'error';
   statusEl.innerHTML = 'Could not load the data (' + esc(err.message) + ').' +
-    '<small>Check that SPACES_KEY and SPACES_SECRET are set in the Netlify site\'s environment variables, then hit Refresh.</small>';
+    '<small>Try the Refresh button. If it keeps failing, contact whoever manages this page.</small>';
 }
 
 // The function reports failures as JSON with an "error" field.
@@ -235,38 +459,31 @@ async function errorFrom(res) {
   return new Error('HTTP ' + res.status + ' ' + res.statusText);
 }
 
-// If the data is an array of objects, show it as a table for easy reading.
-function renderTable(data) {
-  const rows = Array.isArray(data) ? data
-    : (data && typeof data === 'object' && Array.isArray(Object.values(data).find(Array.isArray)))
-      ? Object.values(data).find(Array.isArray)
-      : null;
-  if (!rows || !rows.length || typeof rows[0] !== 'object' || rows[0] === null) return;
-
-  const cols = [...new Set(rows.flatMap(r => Object.keys(r)))];
-  const cell = v => v === null || v === undefined ? ''
-    : typeof v === 'object' ? JSON.stringify(v) : String(v);
-
-  tableEl.innerHTML =
-    '<thead><tr>' + cols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr></thead>' +
-    '<tbody>' + rows.map(r =>
-      '<tr>' + cols.map(c => '<td title="' + esc(cell(r[c])) + '">' + esc(cell(r[c])) + '</td>').join('') + '</tr>'
-    ).join('') + '</tbody>';
-  document.getElementById('tableCard').hidden = false;
-}
-
 function esc(s) {
   return String(s).replace(/[&<>"]/g, ch =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 }
 
-document.getElementById('copyBtn').addEventListener('click', async (e) => {
-  if (!rawText) return;
-  await navigator.clipboard.writeText(rawText);
-  const btn = e.currentTarget;
-  const old = btn.textContent;
-  btn.textContent = 'Copied!';
-  setTimeout(() => { btn.textContent = old; }, 1500);
+let toastTimer;
+async function copy(text, el) {
+  await navigator.clipboard.writeText(text);
+  const toast = document.getElementById('toast');
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 1400);
+  if (el) {
+    el.classList.add('copied');
+    setTimeout(() => el.classList.remove('copied'), 1400);
+  }
+}
+
+contentEl.addEventListener('click', e => {
+  const el = e.target.closest('.copyable');
+  if (el) copy(el.dataset.copy, el);
+});
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  if (plainText) copy(plainText);
 });
 
 document.getElementById('refreshBtn').addEventListener('click', load);
