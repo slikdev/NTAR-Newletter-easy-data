@@ -49,21 +49,32 @@
   h1 { font-size: 1.5rem; margin: 0; flex: 1 1 auto; }
   .meta { color: var(--muted); font-size: 0.875rem; margin-bottom: 1.25rem; }
   .hint { color: var(--muted); font-size: 0.875rem; margin-bottom: 1rem; }
-  button, select {
+  button {
     font: inherit;
     font-size: 0.9rem;
+    font-weight: 600;
     padding: 0.5rem 1rem;
     border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--card);
     color: var(--text);
     cursor: pointer;
-    max-width: 100%;
   }
-  button { font-weight: 600; }
   button:hover { border-color: var(--accent); }
   button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   button.primary:hover { background: var(--accent-hover); }
+
+  .file { margin-bottom: 2.5rem; }
+  .filebar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem 0.75rem;
+    margin-bottom: 0.6rem;
+  }
+  .filebar h2 { font-size: 1.15rem; margin: 0; }
+  .filebar .when { color: var(--muted); font-size: 0.85rem; flex: 1 1 auto; }
+  .filebar button { font-size: 0.8rem; padding: 0.3rem 0.8rem; }
 
   .section {
     background: var(--card);
@@ -158,7 +169,6 @@
 <div class="wrap">
   <header>
     <h1>NTAR Newsletter Data</h1>
-    <select id="filePicker" title="Choose which newsletter file to view" hidden></select>
     <button id="refreshBtn" title="Re-fetch the latest data">Refresh</button>
     <button id="copyBtn" class="primary">Copy all</button>
   </header>
@@ -182,73 +192,87 @@
 const statusEl = document.getElementById('status');
 const contentEl = document.getElementById('content');
 const jsonOut = document.getElementById('jsonOut');
-const picker = document.getElementById('filePicker');
 let rawText = '';
 let plainText = '';
 
-// Fetch the file list, fill the dropdown (newest first), then load the
-// selected file — or the newest one on first load.
+// Fetch the file list, then every file in it, and show them all down the
+// page, newest first.
 async function load() {
-  showLoading('Loading file list…');
+  showLoading('Loading newsletter data…');
   try {
     const res = await fetch('/data?list=1&t=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) throw await errorFrom(res);
     const files = await res.json();
     if (!files.length) throw new Error('the Newsletter folder is empty');
 
-    const previous = picker.value;
-    picker.innerHTML = files.map(f =>
-      '<option value="' + esc(f.key) + '">' +
-      esc(f.key.replace(/^Newsletter\//, '')) +
-      ' — uploaded ' + new Date(f.modified).toLocaleDateString() +
-      '</option>'
-    ).join('');
-    if (files.some(f => f.key === previous)) picker.value = previous;
-    picker.hidden = false;
-
-    await loadFile(picker.value);
-  } catch (err) {
-    showError(err);
-  }
-}
-
-async function loadFile(key) {
-  showLoading('Loading ' + key + '…');
-  try {
-    const res = await fetch('/data?key=' + encodeURIComponent(key) + '&t=' + Date.now(), { cache: 'no-store' });
-    if (!res.ok) throw await errorFrom(res);
-    rawText = await res.text();
-
-    let data = null;
-    try { data = JSON.parse(rawText); } catch {}
+    const results = await Promise.all(files.map(async f => {
+      const r = await fetch('/data?key=' + encodeURIComponent(f.key) + '&t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) throw await errorFrom(r);
+      return { ...f, text: await r.text() };
+    }));
 
     contentEl.innerHTML = '';
-    if (data !== null) {
-      rawText = JSON.stringify(data, null, 2);
+    const rawParts = [];
+    const plainParts = [];
+    for (const f of results) {
+      let data = null;
+      try { data = JSON.parse(f.text); } catch {}
+      const name = f.key.replace(/^Newsletter\//, '');
       // A list of records copies in spreadsheet form; anything else as
       // readable "Label: value" text.
-      plainText = (Array.isArray(data) && data.length && data.every(isObj))
-        ? toTSV(data)
+      const filePlain = data === null ? f.text
+        : (Array.isArray(data) && data.length && data.every(isObj)) ? toTSV(data)
         : toPlain(data);
-      contentEl.appendChild(render(data));
-    } else {
-      // Not JSON — just show the text as-is, still copyable.
-      plainText = rawText;
-      const div = document.createElement('div');
-      div.className = 'section';
-      div.appendChild(leaf(rawText));
-      contentEl.appendChild(div);
+      plainParts.push(name + '\n' + filePlain);
+      rawParts.push('// ' + f.key + '\n' + (data === null ? f.text : JSON.stringify(data, null, 2)));
+      contentEl.appendChild(fileSection(name, f.modified, data, f.text, filePlain));
     }
+    rawText = rawParts.join('\n\n');
+    plainText = plainParts.join('\n\n');
 
     jsonOut.textContent = rawText;
     document.getElementById('rawWrap').hidden = false;
     document.getElementById('hint').hidden = false;
     statusEl.hidden = true;
     document.getElementById('fetchedAt').textContent =
-      'Showing: ' + key.replace(/^Newsletter\//, '') + ' — fetched ' + new Date().toLocaleString();
+      results.length + (results.length === 1 ? ' file' : ' files') +
+      ' — fetched ' + new Date().toLocaleString();
   } catch (err) {
     showError(err);
   }
+}
+
+// One file's block: heading, upload date, its own copy button, then the data.
+function fileSection(name, modified, data, text, filePlain) {
+  const wrap = document.createElement('section');
+  wrap.className = 'file';
+
+  const bar = document.createElement('div');
+  bar.className = 'filebar';
+  const h = document.createElement('h2');
+  h.textContent = name;
+  bar.appendChild(h);
+  const when = document.createElement('span');
+  when.className = 'when';
+  when.textContent = 'uploaded ' + new Date(modified).toLocaleDateString();
+  bar.appendChild(when);
+  const btn = document.createElement('button');
+  btn.textContent = 'Copy this file';
+  btn.title = 'Copy everything in ' + name;
+  btn.addEventListener('click', () => copy(filePlain, btn));
+  bar.appendChild(btn);
+  wrap.appendChild(bar);
+
+  if (data !== null) {
+    wrap.appendChild(render(data));
+  } else {
+    // Not JSON — just show the text as-is, still copyable.
+    const div = document.createElement('div');
+    div.className = 'section';
+    div.appendChild(leaf(text));
+    wrap.appendChild(div);
+  }
+  return wrap;
 }
 
 /* ---------- human-friendly rendering ---------- */
@@ -487,7 +511,6 @@ document.getElementById('copyBtn').addEventListener('click', () => {
 });
 
 document.getElementById('refreshBtn').addEventListener('click', load);
-picker.addEventListener('change', () => loadFile(picker.value));
 
 load();
 </script>
