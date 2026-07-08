@@ -1,14 +1,18 @@
-// Fetches the newest file under the "Newsletter" prefix in the private
-// DigitalOcean Space, using AWS Signature V4 auth. The access keys are read
-// from Netlify environment variables (SPACES_KEY / SPACES_SECRET) — never
-// commit them to this repo.
+// Serves files from the "Newsletter" folder of the private DigitalOcean
+// Space, using AWS Signature V4 auth. The access keys are read from Netlify
+// environment variables (SPACES_KEY / SPACES_SECRET) — never commit them to
+// this repo.
+//
+//   /data          → newest file under Newsletter/
+//   /data?list=1   → JSON list of all files, newest first
+//   /data?key=...  → a specific file from that list
 import { createHash, createHmac } from 'node:crypto';
 
 const HOST = 'ntar-bucket.syd1.digitaloceanspaces.com';
 const PREFIX = 'Newsletter';
 const REGION = 'syd1';
 
-export default async () => {
+export default async (req) => {
   if (!process.env.SPACES_KEY || !process.env.SPACES_SECRET) {
     return json(500, {
       error: 'SPACES_KEY and/or SPACES_SECRET are not set. Add them under ' +
@@ -16,15 +20,15 @@ export default async () => {
     });
   }
 
-  // List everything under the Newsletter prefix. The query string must be in
-  // sorted order, as it is signed.
+  // List everything under the Newsletter prefix (recursive, includes all
+  // subfolders). The query string must be in sorted order, as it is signed.
   const listRes = await signedFetch('/', `list-type=2&prefix=${PREFIX}`);
   const listXml = await listRes.text();
   if (!listRes.ok) {
     return json(502, { error: `Bucket listing returned ${listRes.status}`, detail: listXml.slice(0, 500) });
   }
 
-  // Pick the most recently modified real file (skip zero-byte folder markers).
+  // All real files (skip zero-byte folder markers), newest first.
   const objects = [...listXml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)]
     .map(m => ({
       key: m[1].match(/<Key>([\s\S]*?)<\/Key>/)?.[1],
@@ -34,26 +38,31 @@ export default async () => {
     .filter(o => o.key && !o.key.endsWith('/') && o.size > 0)
     .sort((a, b) => b.modified.localeCompare(a.modified));
 
+  const url = new URL(req.url);
+  if (url.searchParams.has('list')) {
+    return json(200, objects);
+  }
+
   if (!objects.length) {
     return json(404, { error: `No files found under "${PREFIX}" in the bucket.` });
   }
 
-  const newest = objects[0];
-  const path = '/' + newest.key.split('/').map(encodeRfc3986).join('/');
+  // Only keys that appear in the listing may be fetched.
+  const key = url.searchParams.get('key') ?? objects[0].key;
+  if (!objects.some(o => o.key === key)) {
+    return json(404, { error: `No such file in the Newsletter folder: ${key}` });
+  }
+
+  const path = '/' + key.split('/').map(encodeRfc3986).join('/');
   const fileRes = await signedFetch(path);
   const body = await fileRes.text();
   if (!fileRes.ok) {
-    return json(502, { error: `Fetching "${newest.key}" returned ${fileRes.status}`, detail: body.slice(0, 500) });
+    return json(502, { error: `Fetching "${key}" returned ${fileRes.status}`, detail: body.slice(0, 500) });
   }
 
   return new Response(body, {
     status: 200,
-    headers: {
-      'content-type': 'application/json',
-      'cache-control': 'no-store',
-      'x-newsletter-file': encodeURIComponent(newest.key),
-      'x-newsletter-modified': newest.modified,
-    },
+    headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
   });
 };
 

@@ -60,6 +60,16 @@
     cursor: pointer;
   }
   button:hover { border-color: var(--accent); }
+  select {
+    font: inherit;
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    max-width: 100%;
+  }
   button.primary {
     background: var(--accent);
     border-color: var(--accent);
@@ -121,6 +131,7 @@
 <div class="wrap">
   <header>
     <h1>NTAR Newsletter Data</h1>
+    <select id="filePicker" title="Choose which newsletter file to view" hidden></select>
     <button id="refreshBtn" title="Re-fetch the latest data">Refresh</button>
     <button id="copyBtn" class="primary">Copy JSON</button>
     <div class="meta" id="fetchedAt"></div>
@@ -140,35 +151,46 @@
 </div>
 
 <script>
-// On Netlify, /data is proxied to the bucket (see netlify.toml), which avoids
-// CORS. If that path isn't available (e.g. this file opened locally), fall
-// back to fetching the bucket directly.
-const SOURCES = ['/data', 'https://ntar-bucket.syd1.digitaloceanspaces.com/Newsletter'];
-
+// /data is a Netlify serverless function (netlify/functions/data.mjs) that
+// reads the private DigitalOcean Space. ?list=1 returns all files newest
+// first; ?key=... returns one file's contents.
 const statusEl = document.getElementById('status');
 const jsonOut = document.getElementById('jsonOut');
 const tableEl = document.getElementById('dataTable');
+const picker = document.getElementById('filePicker');
 let rawText = '';
 
+// Fetch the file list, fill the dropdown (newest first), then load the
+// selected file — or the newest one on first load.
 async function load() {
-  statusEl.hidden = false;
-  statusEl.className = '';
-  statusEl.textContent = 'Loading newsletter data…';
-  document.getElementById('tableCard').hidden = true;
-  document.getElementById('jsonCard').hidden = true;
-
+  showLoading('Loading file list…');
   try {
-    let res, lastErr;
-    for (const src of SOURCES) {
-      try {
-        res = await fetch(src + '?t=' + Date.now(), { cache: 'no-store' });
-        if (res.ok) break;
-        lastErr = new Error('HTTP ' + res.status + ' ' + res.statusText);
-        res = null;
-      } catch (e) { lastErr = e; }
-    }
-    if (!res) throw lastErr;
-    const fileName = res.headers.get('x-newsletter-file');
+    const res = await fetch('/data?list=1&t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) throw await errorFrom(res);
+    const files = await res.json();
+    if (!files.length) throw new Error('the Newsletter folder is empty');
+
+    const previous = picker.value;
+    picker.innerHTML = files.map(f =>
+      '<option value="' + esc(f.key) + '">' +
+      esc(f.key.replace(/^Newsletter\//, '')) +
+      ' — uploaded ' + new Date(f.modified).toLocaleDateString() +
+      '</option>'
+    ).join('');
+    if (files.some(f => f.key === previous)) picker.value = previous;
+    picker.hidden = false;
+
+    await loadFile(picker.value);
+  } catch (err) {
+    showError(err);
+  }
+}
+
+async function loadFile(key) {
+  showLoading('Loading ' + key + '…');
+  try {
+    const res = await fetch('/data?key=' + encodeURIComponent(key) + '&t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) throw await errorFrom(res);
     rawText = await res.text();
 
     let data;
@@ -183,13 +205,34 @@ async function load() {
     document.getElementById('jsonCard').hidden = false;
     statusEl.hidden = true;
     document.getElementById('fetchedAt').textContent =
-      'Fetched ' + new Date().toLocaleString() +
-      (fileName ? ' — file: ' + decodeURIComponent(fileName) : '');
+      'Fetched ' + new Date().toLocaleString() + ' — file: ' + key;
   } catch (err) {
-    statusEl.className = 'error';
-    statusEl.innerHTML = 'Could not load the data (' + err.message + ').' +
-      '<small>Check that SPACES_KEY and SPACES_SECRET are set in the Netlify site\'s environment variables, then hit Refresh.</small>';
+    showError(err);
   }
+}
+
+function showLoading(msg) {
+  statusEl.hidden = false;
+  statusEl.className = '';
+  statusEl.textContent = msg;
+  document.getElementById('tableCard').hidden = true;
+  document.getElementById('jsonCard').hidden = true;
+}
+
+function showError(err) {
+  statusEl.hidden = false;
+  statusEl.className = 'error';
+  statusEl.innerHTML = 'Could not load the data (' + esc(err.message) + ').' +
+    '<small>Check that SPACES_KEY and SPACES_SECRET are set in the Netlify site\'s environment variables, then hit Refresh.</small>';
+}
+
+// The function reports failures as JSON with an "error" field.
+async function errorFrom(res) {
+  try {
+    const body = await res.json();
+    if (body && body.error) return new Error(body.error);
+  } catch {}
+  return new Error('HTTP ' + res.status + ' ' + res.statusText);
 }
 
 // If the data is an array of objects, show it as a table for easy reading.
@@ -227,6 +270,7 @@ document.getElementById('copyBtn').addEventListener('click', async (e) => {
 });
 
 document.getElementById('refreshBtn').addEventListener('click', load);
+picker.addEventListener('change', () => loadFile(picker.value));
 
 load();
 </script>
