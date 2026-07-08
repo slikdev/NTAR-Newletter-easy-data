@@ -213,19 +213,32 @@ async function load() {
 
     contentEl.innerHTML = '';
     const rawParts = [];
-    const plainParts = [];
+    const records = [];
+    const oddFiles = [];
     for (const f of results) {
       let data = null;
       try { data = JSON.parse(f.text); } catch {}
-      if (data !== null) data = sortNewestFirst(data);
-      const name = f.key.replace(/^Newsletter\//, '');
-      // A list of records copies in spreadsheet form; anything else as
-      // readable "Label: value" text.
-      const filePlain = data === null ? f.text
-        : (Array.isArray(data) && data.length && data.every(isObj)) ? toTSV(data)
-        : toPlain(data);
-      plainParts.push(name + '\n' + filePlain);
       rawParts.push('// ' + f.key + '\n' + (data === null ? f.text : JSON.stringify(data, null, 2)));
+      // Each entry lives in its own file (sometimes several per file) — pool
+      // them all so they can be sorted and shown as one list.
+      if (isRecord(data)) records.push(data);
+      else if (Array.isArray(data) && data.length && data.every(isRecord)) records.push(...data);
+      else oddFiles.push({ ...f, data });
+    }
+
+    // One combined table, ordered by each entry's own submission time —
+    // the files' upload times don't reliably match it.
+    const sorted = sortRecords(records);
+    const plainParts = [];
+    if (sorted.length) {
+      plainParts.push(toTSV(sorted));
+      contentEl.appendChild(entriesSection(sorted));
+    }
+    for (const f of oddFiles) {
+      const data = f.data === null ? null : sortNewestFirst(f.data);
+      const name = f.key.replace(/^Newsletter\//, '');
+      const filePlain = data === null ? f.text : toPlain(data);
+      plainParts.push(name + '\n' + filePlain);
       contentEl.appendChild(fileSection(name, f.modified, data, f.text, filePlain));
     }
     rawText = rawParts.join('\n\n');
@@ -236,11 +249,34 @@ async function load() {
     document.getElementById('hint').hidden = false;
     statusEl.hidden = true;
     document.getElementById('fetchedAt').textContent =
-      results.length + (results.length === 1 ? ' file' : ' files') +
+      sorted.length + (sorted.length === 1 ? ' entry' : ' entries') +
       ' — fetched ' + new Date().toLocaleString();
   } catch (err) {
     showError(err);
   }
+}
+
+// A flat record: an object whose values are all simple (no nesting).
+function isRecord(v) {
+  return isObj(v) && Object.values(v).every(x => x === null || typeof x !== 'object');
+}
+
+// The combined newest-first table of all entries.
+function entriesSection(rows) {
+  const wrap = document.createElement('section');
+  wrap.className = 'file';
+  const bar = document.createElement('div');
+  bar.className = 'filebar';
+  const h = document.createElement('h2');
+  h.textContent = 'All entries';
+  bar.appendChild(h);
+  const when = document.createElement('span');
+  when.className = 'when';
+  when.textContent = 'newest first';
+  bar.appendChild(when);
+  wrap.appendChild(bar);
+  wrap.appendChild(render(rows));
+  return wrap;
 }
 
 // One file's block: heading, upload date, its own copy button, then the data.
