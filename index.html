@@ -179,7 +179,7 @@
   <div id="content"></div>
 
   <details id="rawWrap" hidden>
-    <summary>Raw JSON (technical)</summary>
+    <summary>Raw JSON</summary>
     <pre id="jsonOut"></pre>
   </details>
 </div>
@@ -217,6 +217,7 @@ async function load() {
     for (const f of results) {
       let data = null;
       try { data = JSON.parse(f.text); } catch {}
+      if (data !== null) data = sortNewestFirst(data);
       const name = f.key.replace(/^Newsletter\//, '');
       // A list of records copies in spreadsheet form; anything else as
       // readable "Label: value" text.
@@ -441,6 +442,36 @@ function toPlain(v, indent = '') {
     ).join('\n');
   }
   return indent + fmt(v);
+}
+
+// Orders every list of records newest-first by its timestamp field
+// (e.g. "submittedAtUtc"), so the latest entries appear at the top.
+function sortNewestFirst(v) {
+  if (Array.isArray(v)) {
+    const sorted = (v.length > 1 && v.every(isObj)) ? sortRecords(v) : v;
+    return sorted.map(sortNewestFirst);
+  }
+  if (isObj(v)) {
+    const out = {};
+    for (const [k, val] of Object.entries(v)) out[k] = sortNewestFirst(val);
+    return out;
+  }
+  return v;
+}
+
+function sortRecords(rows) {
+  const isoRe = /^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2})?/;
+  // Fields whose values look like dates; prefer names like submitted/created.
+  const dateKeys = [...new Set(rows.flatMap(r => Object.keys(r)))]
+    .filter(k => rows.some(r => typeof r[k] === 'string' && isoRe.test(r[k].trim())));
+  if (!dateKeys.length) return rows;
+  const key = dateKeys.find(k => /submit|creat|added|updated|date|time|at$/i.test(k)) ?? dateKeys[0];
+  const ts = r => {
+    const s = typeof r[key] === 'string' ? r[key].trim().replace(/\.(\d{3})\d+/, '.$1') : '';
+    const t = Date.parse(s);
+    return isNaN(t) ? -Infinity : t;
+  };
+  return [...rows].sort((a, b) => ts(b) - ts(a));
 }
 
 // Tab-separated version of a record list — pastes straight into Excel or
