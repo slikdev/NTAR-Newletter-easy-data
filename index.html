@@ -168,6 +168,7 @@ async function load() {
       } catch (e) { lastErr = e; }
     }
     if (!res) throw lastErr;
+    const fileName = res.headers.get('x-newsletter-file');
     rawText = await res.text();
 
     let data;
@@ -182,7 +183,8 @@ async function load() {
     document.getElementById('jsonCard').hidden = false;
     statusEl.hidden = true;
     document.getElementById('fetchedAt').textContent =
-      'Fetched ' + new Date().toLocaleString();
+      'Fetched ' + new Date().toLocaleString() +
+      (fileName ? ' — file: ' + decodeURIComponent(fileName) : '');
   } catch (err) {
     statusEl.className = 'error';
     statusEl.innerHTML = 'Could not load the data (' + err.message + ').' +
