@@ -1,0 +1,5 @@
+# The /data endpoint is served by the serverless function in
+# netlify/functions/data.mjs, which signs requests to the private
+# DigitalOcean Space using the SPACES_KEY / SPACES_SECRET env vars.
+[functions]
+  directory = "netlify/functions"

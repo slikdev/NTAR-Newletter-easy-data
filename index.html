@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NTAR Newsletter Data</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --text: #1a1d21;
+    --muted: #6b7280;
+    --border: #e2e5e9;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --code-bg: #f8f9fb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --card: #1e2126;
+      --text: #e8eaed;
+      --muted: #9aa1ab;
+      --border: #33373e;
+      --code-bg: #16181d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1rem 4rem;
+  }
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+  h1 { font-size: 1.5rem; margin: 0; flex: 1 1 auto; }
+  .meta { color: var(--muted); font-size: 0.875rem; width: 100%; }
+  button {
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0.5rem 1.1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  button.primary:hover { background: var(--accent-hover); }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+  }
+  .card h2 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin: 0;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .scroll { overflow-x: auto; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.9rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    max-width: 420px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  th { color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  pre {
+    margin: 0;
+    padding: 1rem;
+    background: var(--code-bg);
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 0.85rem;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  #status {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--muted);
+  }
+  #status.error { color: #dc2626; }
+  #status.error small { display: block; margin-top: 0.5rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>NTAR Newsletter Data</h1>
+    <button id="refreshBtn" title="Re-fetch the latest data">Refresh</button>
+    <button id="copyBtn" class="primary">Copy JSON</button>
+    <div class="meta" id="fetchedAt"></div>
+  </header>
+
+  <div id="status">Loading newsletter data&hellip;</div>
+
+  <div class="card" id="tableCard" hidden>
+    <h2>Data</h2>
+    <div class="scroll"><table id="dataTable"></table></div>
+  </div>
+
+  <div class="card" id="jsonCard" hidden>
+    <h2>Raw JSON</h2>
+    <pre id="jsonOut"></pre>
+  </div>
+</div>
+
+<script>
+// On Netlify, /data is proxied to the bucket (see netlify.toml), which avoids
+// CORS. If that path isn't available (e.g. this file opened locally), fall
+// back to fetching the bucket directly.
+const SOURCES = ['/data', 'https://ntar-bucket.syd1.digitaloceanspaces.com/Newsletter'];
+
+const statusEl = document.getElementById('status');
+const jsonOut = document.getElementById('jsonOut');
+const tableEl = document.getElementById('dataTable');
+let rawText = '';
+
+async function load() {
+  statusEl.hidden = false;
+  statusEl.className = '';
+  statusEl.textContent = 'Loading newsletter data…';
+  document.getElementById('tableCard').hidden = true;
+  document.getElementById('jsonCard').hidden = true;
+
+  try {
+    let res, lastErr;
+    for (const src of SOURCES) {
+      try {
+        res = await fetch(src + '?t=' + Date.now(), { cache: 'no-store' });
+        if (res.ok) break;
+        lastErr = new Error('HTTP ' + res.status + ' ' + res.statusText);
+        res = null;
+      } catch (e) { lastErr = e; }
+    }
+    if (!res) throw lastErr;
+    rawText = await res.text();
+
+    let data;
+    try { data = JSON.parse(rawText); }
+    catch { data = null; }
+
+    if (data !== null) {
+      rawText = JSON.stringify(data, null, 2);
+      renderTable(data);
+    }
+    jsonOut.textContent = rawText;
+    document.getElementById('jsonCard').hidden = false;
+    statusEl.hidden = true;
+    document.getElementById('fetchedAt').textContent =
+      'Fetched ' + new Date().toLocaleString();
+  } catch (err) {
+    statusEl.className = 'error';
+    statusEl.innerHTML = 'Could not load the data (' + err.message + ').' +
+      '<small>Check that SPACES_KEY and SPACES_SECRET are set in the Netlify site\'s environment variables, then hit Refresh.</small>';
+  }
+}
+
+// If the data is an array of objects, show it as a table for easy reading.
+function renderTable(data) {
+  const rows = Array.isArray(data) ? data
+    : (data && typeof data === 'object' && Array.isArray(Object.values(data).find(Array.isArray)))
+      ? Object.values(data).find(Array.isArray)
+      : null;
+  if (!rows || !rows.length || typeof rows[0] !== 'object' || rows[0] === null) return;
+
+  const cols = [...new Set(rows.flatMap(r => Object.keys(r)))];
+  const cell = v => v === null || v === undefined ? ''
+    : typeof v === 'object' ? JSON.stringify(v) : String(v);
+
+  tableEl.innerHTML =
+    '<thead><tr>' + cols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr></thead>' +
+    '<tbody>' + rows.map(r =>
+      '<tr>' + cols.map(c => '<td title="' + esc(cell(r[c])) + '">' + esc(cell(r[c])) + '</td>').join('') + '</tr>'
+    ).join('') + '</tbody>';
+  document.getElementById('tableCard').hidden = false;
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, ch =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+}
+
+document.getElementById('copyBtn').addEventListener('click', async (e) => {
+  if (!rawText) return;
+  await navigator.clipboard.writeText(rawText);
+  const btn = e.currentTarget;
+  const old = btn.textContent;
+  btn.textContent = 'Copied!';
+  setTimeout(() => { btn.textContent = old; }, 1500);
+});
+
+document.getElementById('refreshBtn').addEventListener('click', load);
+
+load();
+</script>
+</body>
+</html>
